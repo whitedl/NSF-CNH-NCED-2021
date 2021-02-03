@@ -1,0 +1,205 @@
+\documentclass{article}
+\usepackage{rotating}
+\usepackage{graphicx, color, framed, alltt}
+\usepackage{fullpage}
+\usepackage{pdflscape}
+\usepackage{placeins}
+\usepackage{longtable}
+\begin{document}
+
+\section*{County Conservation Easment Quantitative Report: Sonoma}
+
+\textbf{Original Analysis} \\
+\textbf{By: C. Dyckman}\\
+Date: 2017\\
+\\
+\textbf{Updated Analysis} \\
+\textbf{By: D.White}\\
+\\
+----------------------------\\
+\\
+KNITR File: Report\textunderscore Sonoma\textunderscore quan\textunderscore ce.Rnw \\
+Date File: Sonoma\textunderscore Parcel\textunderscore ce\textunderscore join.csv \\
+
+<<timestamp, echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+  paste0("Generated on: ", Sys.time())
+
+@
+  
+  
+\pagebreak
+
+<<Library, echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+  
+  
+library(sf)
+library(dplyr)
+library(janitor)
+library(mapview)
+library(ggplot2)
+library(scales)
+library(psych)
+library(kableExtra)
+library(knitr)
+library(summarytools)  
+
+setwd("C:/Users/whitedl/Box Sync/Default Sync Folder/Projects/NSF_CNH/Papers/Conservation_Papers/Sonoma")
+#Read Parcel Sacramento CSV or RDS file for Mac
+sonoma <- read.csv("Sonoma_parcel_ce_join.csv")
+
+#How many CEs are in the data set
+sum(!is.na(sonoma$YearCEAdd))
+@
+
+<<howmanyce, echo=FALSE, results='as.is', message=FALSE, warning=FALSE>>=
+print('How many CEs in the data set') 
+sonoma_ce <- sonoma[!is.na(sonoma$YearCEAdd),]
+
+@
+
+<<whichyears, echo=FALSE, results='as.is', message=FALSE, warning=FALSE>>=
+print('List all data in the YearCEAdd')
+unique(sonoma$YearCEAdd)
+
+@
+
+<<data_prep, echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+# Some parameters
+
+county <- "SON"
+cnty <- "Sonoma"
+@
+
+
+\pagebreak
+\begin{sidewaystable}
+\scriptsize
+%  \hspace*{+1cm}
+\vspace*{-8cm}
+\textbf{Table 1. Descriptive Statisitics: Sonoma (MstrLUC*YR*)}\\
+<<univariate, echo=FALSE, results='as.is', message=FALSE, warning=FALSE>>=
+
+#------------- MstrLUCd - Univariate All Years ------------------------------------
+  
+sonoma_ce_mstrlucdyr <- select(sonoma_ce, MstrLUCd02, MstrLUCd03, MstrLUCd04, MstrLUCd05, MstrLUCd06, MstrLUCd07, MstrLUCd08)  
+kable(describe(sonoma_ce_mstrlucdyr))
+
+@
+\end{sidewaystable}
+
+\clearpage
+\FloatBarrier
+\textbf{Table 2. Frequency Table: Sonoma (MstrLUCd02)}\\
+<<frequency_1, echo=FALSE, results='as.is', message=FALSE, warning=FALSE>>=
+
+#-------------------------- Frequency Tables --------------------------------#
+kable(summarytools::freq(sonoma_ce_mstrlucdyr$MstrLUCd02, order = "freq", totals=FALSE, report.nas = FALSE))
+@
+
+\clearpage
+\FloatBarrier
+\textbf{Table 3. Frequency Table: Sonoma (MstrLUCd03)}\\
+<<frequency_2, echo=FALSE, results='as.is', message=FALSE, warning=FALSE>>=
+
+#-------------------------- Frequency Tables --------------------------------#
+kable(summarytools::freq(sonoma_ce_mstrlucdyr$MstrLUCd03, order = "freq", totals=FALSE, report.nas = FALSE))
+@
+
+\clearpage
+\FloatBarrier
+\textbf{Table 3. Frequency Table: Sonoma (MstrLUCd04)}\\
+<<frequency_3, echo=FALSE, results='as.is', message=FALSE, warning=FALSE>>=
+
+#-------------------------- Frequency Tables --------------------------------#
+kable(summarytools::freq(sonoma_ce_mstrlucdyr$MstrLUCd04, order = "freq", totals=FALSE, report.nas = FALSE))
+@
+
+\clearpage
+\FloatBarrier
+\textbf{Table 3. Frequency Table: Sonoma (MstrLUCd05)}\\
+<<frequency_4, echo=FALSE, results='as.is', message=FALSE, warning=FALSE>>=
+
+#-------------------------- Frequency Tables --------------------------------#
+kable(summarytools::freq(sonoma_ce_mstrlucdyr$MstrLUCd05, order = "freq", totals=FALSE, report.nas = FALSE))
+@
+
+
+\clearpage
+\FloatBarrier
+\textbf{Table 3. Frequency Table: Sonoma (MstrLUCd06)}\\
+<<frequency_5, echo=FALSE, results='as.is', message=FALSE, warning=FALSE>>=
+
+#-------------------------- Frequency Tables --------------------------------#
+kable(summarytools::freq(sonoma_ce_mstrlucdyr$MstrLUCd06, order = "freq", totals=FALSE, report.nas = FALSE))
+@
+
+
+\clearpage
+\FloatBarrier
+\textbf{Table 3. Frequency Table: Sonoma (MstrLUCd07)}\\
+<<frequency_6, echo=FALSE, results='as.is', message=FALSE, warning=FALSE>>=
+
+#-------------------------- Frequency Tables --------------------------------#
+kable(summarytools::freq(sonoma_ce_mstrlucdyr$MstrLUCd07, order = "freq", totals=FALSE, report.nas = FALSE))
+@
+
+
+\clearpage
+\FloatBarrier
+\textbf{Table 3. Frequency Table: Sonoma (MstrLUCd08)}\\
+<<frequency_7, echo=FALSE, results='as.is', message=FALSE, warning=FALSE>>=
+
+#-------------------------- Frequency Tables --------------------------------#
+kable(summarytools::freq(sonoma_ce_mstrlucdyr$MstrLUCd08, order = "freq", totals=FALSE, report.nas = FALSE))
+@
+
+
+\pagebreak
+<<bar_charts, echo=FALSE, results='hide', message=FALSE, warning=FALSE>>=
+#---------- bar chart --------------------------------
+
+mstr <- colnames(sonoma_ce_mstrlucdyr)[1]
+sonoma_ce_mstrlucdyr %>% filter(!is.na(sonoma_ce_mstrlucdyr$MstrLUCd02)) %>% ggplot(aes(x=as.factor(MstrLUCd02), y=..prop.., group=1)) +
+  geom_bar(fill="#880011") +
+  theme(axis.text.y=element_text(size=8),axis.title.y=element_text(size=8, vjust=1.2),axis.text.x=element_text(size=8, angle=45, vjust=+1, hjust=1 ))+  
+  labs(x= "Landuse Code", y = "% MstrLUCd Counts", title = paste0(cnty, " - ",mstr), subtitle = "")
+
+mstr <- colnames(sonoma_ce_mstrlucdyr)[2]
+sonoma_ce_mstrlucdyr %>% filter(!is.na(sonoma_ce_mstrlucdyr$MstrLUCd02)) %>% ggplot(aes(x=as.factor(MstrLUCd03), y=..prop.., group=1)) +
+  geom_bar(fill="#880011") +
+  theme(axis.text.y=element_text(size=8),axis.title.y=element_text(size=8, vjust=1.2),axis.text.x=element_text(size=8, angle=45, vjust=+1, hjust=1 ))+  
+  labs(x= "Landuse Code", y = "% MstrLUCd Counts", title = paste0(cnty, " - ",mstr), subtitle = "")
+
+mstr <- colnames(sonoma_ce_mstrlucdyr)[3]
+sonoma_ce_mstrlucdyr %>% filter(!is.na(sonoma_ce_mstrlucdyr$MstrLUCd02)) %>% ggplot(aes(x=as.factor(MstrLUCd04), y=..prop.., group=1)) +
+  geom_bar(fill="#880011") +
+  theme(axis.text.y=element_text(size=8),axis.title.y=element_text(size=8, vjust=1.2),axis.text.x=element_text(size=8, angle=45, vjust=+1, hjust=1 ))+  
+  labs(x= "Landuse Code", y = "% MstrLUCd Counts", title = paste0(cnty, " - ",mstr), subtitle = "")
+
+mstr <- colnames(sonoma_ce_mstrlucdyr)[4]
+sonoma_ce_mstrlucdyr %>% filter(!is.na(sonoma_ce_mstrlucdyr$MstrLUCd02)) %>% ggplot(aes(x=as.factor(MstrLUCd05), y=..prop.., group=1)) +
+  geom_bar(fill="#880011") +
+  theme(axis.text.y=element_text(size=8),axis.title.y=element_text(size=8, vjust=1.2),axis.text.x=element_text(size=8, angle=45, vjust=+1, hjust=1 ))+  
+  labs(x= "Landuse Code", y = " % MstrLUCd Counts", title = paste0(cnty, " - ",mstr), subtitle = "")
+
+mstr <- colnames(sonoma_ce_mstrlucdyr)[5]
+sonoma_ce_mstrlucdyr %>% filter(!is.na(sonoma_ce_mstrlucdyr$MstrLUCd02)) %>% ggplot(aes(x=as.factor(MstrLUCd06), y=..prop.., group=1)) +
+  geom_bar(fill="#880011") +
+  theme(axis.text.y=element_text(size=8),axis.title.y=element_text(size=8, vjust=1.2),axis.text.x=element_text(size=8, angle=45, vjust=+1, hjust=1 ))+  
+  labs(x= "Landuse Code", y = "% MstrLUCd Counts", title = paste0(cnty, " - ",mstr), subtitle = "")
+
+mstr <- colnames(sonoma_ce_mstrlucdyr)[6]
+sonoma_ce_mstrlucdyr %>% filter(!is.na(sonoma_ce_mstrlucdyr$MstrLUCd02)) %>% ggplot(aes(x=as.factor(MstrLUCd07), y=..prop.., group=1)) +
+  geom_bar(fill="#880011") +
+  theme(axis.text.y=element_text(size=8),axis.title.y=element_text(size=8, vjust=1.2),axis.text.x=element_text(size=8, angle=45, vjust=+1, hjust=1 ))+  
+  labs(x= "Landuse Code", y = "% MstrLUCd Counts", title = paste0(cnty, " - ",mstr), subtitle = "")
+
+mstr <- colnames(sonoma_ce_mstrlucdyr)[7]
+sonoma_ce_mstrlucdyr %>% filter(!is.na(sonoma_ce_mstrlucdyr$MstrLUCd02)) %>% ggplot(aes(x=as.factor(MstrLUCd08), y=..prop.., group=1)) +
+  geom_bar(fill="#880011") +
+  theme(axis.text.y=element_text(size=8),axis.title.y=element_text(size=8, vjust=1.2),axis.text.x=element_text(size=8, angle=45, vjust=+1, hjust=1 ))+  
+  labs(x= "Landuse Code", y = "% MstrLUCd Counts", title = paste0(cnty, " - ",mstr), subtitle = "")
+@
+
+
+\end{document}

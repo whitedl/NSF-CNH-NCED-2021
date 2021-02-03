@@ -1,0 +1,270 @@
+\documentclass{article}
+\usepackage{rotating}
+\usepackage{graphicx, color, framed, alltt}
+\usepackage{fullpage}
+\usepackage{pdflscape}
+\usepackage{placeins}
+\usepackage{longtable}
+\begin{document}
+
+\section*{Clemson \& NCED Comparison CE Report: York}
+
+\textbf{Original Analysis} \\
+\textbf{By: S. Ogletree}\\
+Date: 2017-11-30 Note: Original File\\
+Date: 2020-07-02 Note: Update to latest database. Updated the County CE datasets NCED\textunderscore CUCED\textunderscore 2020.gdb with latest CE shape files from the HUD project file. The original database was NCED\textunderscore CUCED\textunderscore 2018.gdb. Fixed quote issue in the supercedes column that failed a NA conversion line #64. Created a new working folder called NCED\textunderscore 2020\textunderscore Analysis.  \\
+\\
+\textbf{Updated Analysis} \\
+\textbf{By: D.White}\\
+\\
+----------------------------\\
+\\
+Original File: test\textunderscore report\textunderscore setup\textunderscore 20171130.R  \\
+KNITR File: Report\textunderscore York.Rnw \\
+Database: NCED\textunderscore CUCED\textunderscore 2020.gdb \\
+<<timestamp, echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+paste0("Generated on: ", Sys.time())
+
+@
+
+
+\pagebreak
+
+<<Library, echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+
+library(sf)
+library(dplyr)
+library(janitor)
+library(mapview)
+library(ggplot2)
+library(scales)
+library(psych)
+library(kableExtra)
+
+setwd("C:/Users/whitedl/Box Sync/Default Sync Folder/Projects/NSF_CNH/NCED_2020_Analysis")
+@
+
+<<data_prep, echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+# Some parameters
+cnty <- "YRK"
+county <- "York"
+# where the data are as feature classes
+gdb <- "NCED_CUCED_2020.gdb"
+# see what the layer names are
+
+# Prints feature classess in GDB
+#st_layers(gdb)
+
+# fetch the data
+# Clemson CE data
+c_layer <- paste0(cnty, "_CE_data")
+c_ce <- st_read(dsn = gdb, layer = c_layer, stringsAsFactors = F, quiet = TRUE)
+c_ce$Supersedes[c_ce$Supersedes == ""] <- NA
+
+# Put NA in Supersedes empty cells
+c_ce$Supersedes[c_ce$Supersedes==" "] <- NA 
+
+# NCED data
+n_layer <- paste0("NCED_timeframe_", cnty)
+n_ce <- st_read(dsn = gdb, layer = n_layer, stringsAsFactors = F, quiet = TRUE)
+
+# check the names of the cols. Also drop the geometry as we are working with the tabular data and the geometry screws up dplyr it seems (with dplyr 0.7.4 and sf 0.5.5 at least)
+#names(c_ce )
+#names(n_ce )
+YRKc_ce_df <- c_ce
+st_geometry(YRKc_ce_df ) <- NULL
+YRKn_ce_df <- n_ce
+st_geometry(YRKn_ce_df) <- NULL
+@
+
+<<graph_TotalCounts, fig.cap='Total CE Counts All Years', echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+#### Count of CE's ####
+ce_count <- data.frame(Set=c("Clemson All CEs", "Clemson No Supersedes", "NCED"), Num_CE= c(NA, NA, NA), stringsAsFactors=FALSE) 
+ce_count[1,2] <- nrow(YRKc_ce_df)
+ce_count[2,2] <- YRKc_ce_df %>% filter(is.na(Supersedes)) %>% count() %>% pull(n)
+ce_count[3,2] <- nrow(YRKn_ce_df)
+ce_count %>% ggplot(aes(Set, Num_CE)) + geom_bar(stat = "identity", fill = c( "#e27202", "#e27202", "#5c8cdb"))  + scale_y_continuous(labels = comma) +  labs(x= "", y = "Total CE Counts", title = paste0(cnty, " - Total CE Counts All Years"), subtitle = "")
+@
+
+<<graph_TotalCountsYearCU_Super, fig.cap='Clemson Counts by Year with Supersedes', echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+##### YEAR COUNTS ####
+# plot the count by year added for Clemson
+ggplot(YRKc_ce_df , aes(as.factor(YearCEAdd))) + geom_bar(fill = "#e27202") + labs(x= "Year CE Added", title = paste0(county, "- CUCED"), subtitle = "Count of CE's added by year - all")
+@
+<<graph_TotalCountsYearCU, fig.cap='Clemson Counts by Year without Supersedes', echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+# plot the count by year added for Clemson
+YRKc_ce_df %>%  filter(is.na(Supersedes)) %>% ggplot(aes(as.factor(YearCEAdd))) + geom_bar(fill = "#e27202") + labs(x= "Year CE Added", title = paste0(county, "- CUCED"), subtitle = "Count of CE's added by year - no supersedes")
+@
+<<graph_TotalCountsYearNCED, fig.cap='NCED Counts by Year with Supersedes', echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+# plot the count by year added NCED
+ggplot(YRKn_ce_df, aes(as.factor(year_est))) + geom_bar(fill = "#5c8cdb") +  labs(x= "Year CE Added", title = paste0(county, "- NCED"), subtitle = "Count of CE's added by year")
+@
+
+<<graph_TotalCountsAlll, fig.cap='Clemson and NCED Counts by Year (omit supersedes)', echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+# then just the year and count, add a set identifier, rename 'YearCEAdd' to match NCED
+c_year <- YRKc_ce_df %>% group_by(YearCEAdd) %>% summarise(nn = n()) %>% mutate(set = "Clemson") %>% rename(year_est = YearCEAdd)
+# make a data frame with only the original CE's, no supersedes
+c_year_sub <- YRKc_ce_df %>% filter(is.na(Supersedes)) %>% group_by(YearCEAdd) %>% summarise(nn = n()) %>% mutate(set = "Clemson") %>% rename(year_est = YearCEAdd) 
+# the year and count for NCED
+n_year <- YRKn_ce_df %>% group_by(year_est) %>% summarise(nn = n()) %>% mutate(set = "NCED")
+
+# combine the Clemson and NCED, the Clemson set is all CE's
+yr_compare <- c_year %>% bind_rows(n_year)
+# combine the Clemson and NCED, the Cmelson set omits any superseding CE's
+yr_compare2 <- c_year_sub %>% bind_rows(n_year)
+
+
+# plot the 2 sets with Clemson omitting the supersedes
+ggplot(yr_compare2, aes(as.factor(year_est), nn, fill = set)) + geom_bar(stat = "identity",position = "dodge") +  labs(x= "Year CE Added", y = "count",title = paste0(county, " Compare - NCED - Clemson"), subtitle = "Count of CE's added by year (Clemson omit supersedes)") + scale_fill_manual(values=c("#e27202", "#5c8cdb")) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# save it to pdf
+# ggsave(paste0("", county,"_yradd.pdf"))
+@
+
+<<graph_CumTotalCountsYear, fig.cap='Clemson and NCED Cumalative Counts by Year', echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+##### CUMULATIVE COUNTS ####
+# get the cumulative sum for clemson, no supersedes
+cmcnt_cu <- c_year_sub %>% mutate(csum = cumsum(nn))
+# get the cumulative count for the NCED
+cmcn_nced <- n_year %>% mutate(csum = cumsum(nn))
+# combine
+cmcn_ce <- cmcnt_cu %>% bind_rows(cmcn_nced )
+
+# plot the cumulative counts for comparison
+ggplot(cmcn_ce, aes(year_est, csum, color = set)) + geom_line(size = 1) + scale_x_continuous(breaks = scales::pretty_breaks(n = 6)) + labs(title = paste(county, "- CE growth", sep = " "), x = "Year", y = "cumulative count") + scale_color_manual(values=c("#e27202", "#5c8cdb"))
+
+# save to pdf
+# ggsave(paste0("", county,"_cumulative.pdf"))
+@
+
+
+<<plots_acres, fig.cap="Total Acres All Years (omit supersedes)", echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+#### Total Acres All Years ###############
+
+tot_area <- data.frame(Set=c("Clemson", "NCED"), Total_Acres= c(NA, NA), stringsAsFactors=FALSE)
+tot_area[1,2] <- YRKc_ce_df %>% filter(is.na(Supersedes)) %>% summarize(CEArea_Ac = sum(CEArea_Ac))
+tot_area[2,2] <- YRKn_ce_df %>% summarize(gis_acres = sum(gis_acres))
+tot_area %>% ggplot(aes(Set, Total_Acres)) + geom_bar(stat = "identity", fill = c( "#e27202", "#5c8cdb"))  + scale_y_continuous(labels = comma) +  labs(x= "", y = "Area in Acres", title = paste0(cnty, " - Total Area in CE"), subtitle = "(Clemson omit supersedes)")
+# save it to pdf
+# ggsave(paste0("", county,"_total_area.pdf"))
+@
+
+<<plots_acres_CUYear, fig.cap="Clemson Total Acres by Year", echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+#---------------------------------------------------------
+# plot size by year
+# plot CEAcre by year added for Clemson
+ggplot(YRKc_ce_df , aes(as.factor(YearCEAdd), CEArea_Ac)) + geom_col(fill = "#e27202") + labs(x= "Year CE Added", y = "Acres", title = paste0(county, "- CUCED"), subtitle = "CE Sum Acres Added by Year - all")
+@
+
+<<plots_acres_CUYear_NO, fig.cap="Clemson Total Acres by Year (omit supersedes)", echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+# plot the count by year added for Clemson
+YRKc_ce_df %>%  filter(is.na(Supersedes)) %>% ggplot(aes(as.factor(YearCEAdd), CEArea_Ac)) + geom_col(fill = "#e27202") + labs(x= "Year CE Added", y = "Acres", title = paste0(county, "- CUCED"), subtitle = "CE Sum Acres Added by Year - No Supersedes")
+@
+
+<<plots_acres_NCED, fig.cap="NCED Total Acres by Year (omit supersedes)", echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+# plot the count by year added NCED
+ggplot(YRKn_ce_df, aes(as.factor(year_est), gis_acres)) + geom_col(fill = "#5c8cdb") +  labs(x= "Year CE Added", y = "Acres", title = paste0(county, "- NCED"), subtitle = "Sum Acres of CE's added by year")
+@
+
+<<Data_acres_CU_NCED_byYear, fig.cap="Clemson and NCED Total Acres by Year (omit supersedes)", echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+#################### Combine CE and NCED Dataset for Bar and Box Plots ###############################
+#Create df and rename columns for Acres Clemson
+c_ce_df_box <- YRKc_ce_df %>% filter(is.na(Supersedes)) %>% select('YearCEAdd','CEArea_Ac') %>% mutate(Data = "Clemson") %>% rename(Acres = CEArea_Ac)
+#Create df and rename columns for Acres NCED
+n_ce_df_box <- YRKn_ce_df %>% select('year_est','gis_acres')  %>% mutate(Data = "NCED") %>% rename(YearCEAdd = year_est, Acres = gis_acres) 
+#Combine both data sets
+ce_cmb_all <- bind_rows(c_ce_df_box, n_ce_df_box)
+@
+
+<<plots_acres_CU_NCED_byYear, fig.cap="Clemson and NCED Total Acres by Year (omit supersedes)", echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+# plot the Clemson and NCED Acres with Clemson omitting the supersedes
+ggplot(ce_cmb_all, aes(as.factor(YearCEAdd), Acres, fill = Data)) + geom_col() +  labs(x= "Year CE Added", y = "Acres",title = paste0(county, " Clemson & NCED"), subtitle = "CE Size by Year (Clemson omit supersedes)") + scale_fill_manual(values=c("#e27202", "#5c8cdb"))+ theme(axis.text.x = element_text(angle = 45, hjust = 1))
+@
+%ggplot(ce_cmb_all, aes(as.factor(YearCEAdd), Acres, fill = Data)) + geom_col(position = "dodge") +  labs(x= "Year CE Added", y = "Acres",title = paste0(county, " Clemson & NCED"), subtitle = "CE Size by Year (Clemson omit supersedes)") + scale_fill_manual(values=c("#e27202", "#5c8cdb"))
+
+
+
+<<graph_CumTotalAcresYear, fig.cap="Clemson and NCED Cumalative Acres by Year", echo=FALSE, results='latex', message=FALSE, warning=FALSE>>=
+##### CUMULATIVE COUNTS ####
+# make a data frame with only the original CE's, no supersedes
+c_year_sub_acres <- YRKc_ce_df %>% filter(is.na(Supersedes)) %>% group_by(YearCEAdd) %>% summarise(CEArea_Ac = sum(CEArea_Ac)) %>% mutate(set = "Clemson") %>% rename(year_est = YearCEAdd) 
+# the year and count for NCED
+n_year_acres <- YRKn_ce_df%>% group_by(year_est) %>% summarise(gis_acres = sum(gis_acres)) %>% mutate(set = "NCED")
+# get the cumulative sum for clemson, no supersedes
+cmcnt_cu_acres <- c_year_sub_acres %>% mutate(csum = cumsum(CEArea_Ac))
+# get the cumulative count for the NCED
+cmcn_nced_acres <- n_year_acres %>% mutate(csum = cumsum(gis_acres))
+# combine
+cmcn_ce_acres <- cmcnt_cu_acres %>% bind_rows(cmcn_nced_acres)
+
+# plot the cumulative counts for comparison
+ggplot(cmcn_ce_acres, aes(year_est, csum, color = set)) + geom_line(size = 1) + scale_x_continuous(breaks = scales::pretty_breaks(n = 6)) + labs(title = paste(county, "- CE Growth in Acres", sep = " "), x = "Year", y = "Cumulative Acres") + scale_color_manual(values=c("#e27202", "#5c8cdb"))
+@
+
+<<data_univariate_stats, echo=FALSE, results='hide', message=FALSE, warning=FALSE>>=
+
+#Create a univariate table for CE
+YRK_CE_df <- YRKc_ce_df %>% filter(is.na(Supersedes)) %>% select('CEArea_Ac','CEAreaSqFt','CESize','Shape_Area','NearCECty')
+YRK_CE_Table <- describe(YRK_CE_df)
+YRK_CE_Table_digits <- print(YRK_CE_Table, digits=2, quiet = TRUE)
+
+#Create a univariate table for NCED
+YRK_NCED_df <- YRKn_ce_df %>% select('rep_acres','gis_acres','Shape_Area')
+YRK_NCED_Table <- describe(YRK_NCED_df)
+YRK_NCED_Table_digits <- print(YRK_NCED_Table, digits=2, quiet = TRUE)
+@
+
+%<<Boxplots, out.width='11cm', out.height='11cm', fig.align='center', fig.cap='CE Acres Clemson and NCED', echo=FALSE, results='hide', message=FALSE, warning=FALSE>>=
+
+<<Boxplots, fig.align='center', fig.cap="CE Acres Clemson and NCED", echo=FALSE, results='hide', message=FALSE, warning=FALSE>>=
+#BoxPlot of combinded data set
+ggplot(ce_cmb_all, aes(x=Data, y=Acres)) + geom_boxplot(notch = F)  + labs(title="Acres by Clemson and NCED & Omit Supersedes")
+#Plot again with a scaled data and outliers droped
+bx_scaled <- ggplot(ce_cmb_all, aes(x=Data, y=Acres)) + geom_boxplot(notch = F, outlier.shape = NA) + coord_cartesian(ylim = quantile(ce_cmb_all$Acres, c(0.1, 0.90)))
+bx_scaled + labs(title="Acres by Clemson and NCED  & Omit Supersedes - Scaled")
+#BoxPlot of combinded data set Log10
+ggplot(ce_cmb_all, aes(x=Data, y=log10(Acres))) + geom_boxplot(notch = F)  + labs(title="Log10(Acres) by Clemson and NCED & Omit Supersedes")
+@
+
+<<ttest, echo=FALSE, results='asis'>>=
+Ttest <- t.test(c_ce_df_box$Acres,n_ce_df_box$Acres)
+Ttest_list <- (unlist(Ttest))
+@
+\clearpage
+\FloatBarrier
+\textbf{Table 1. Welch's T-Test for Unequal Variances: Clemson and NCED Acres}\\
+<<ttest_print, echo=FALSE, results='asis'>>=
+kable(Ttest_list)
+@
+
+\pagebreak
+\begin{sidewaystable}
+\scriptsize
+%  \hspace*{+1cm}
+\vspace*{-8cm}
+\textbf{Table 2. Univariate NSF CE} \\
+<<Univariate_table_CE, results='asis', echo=FALSE>>=
+
+kable(YRK_CE_Table, digits = 2)
+@
+\end{sidewaystable}
+%\end{landscape}
+
+\pagebreak
+\begin{sidewaystable}
+\scriptsize
+%\scriptsize
+%  \hspace*{+1cm}
+\vspace*{-8cm}
+\textbf{Table 3. Univariate NCED} \\
+<<Univariate_table_NCED, results='asis', echo=FALSE>>=
+kable(YRK_NCED_Table, digits = 2)
+@
+\end{sidewaystable}
+%\end{landscape}
+
+
+
+
+
+\end{document}
